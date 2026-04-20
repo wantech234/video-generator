@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Prompt JSON Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c26;--surface3:#252535;
+  --accent:#7c6fe0;--accent2:#4ecdc4;--accent3:#ff6b6b;
+  --text:#e8e6f0;--text2:#9896b0;--text3:#5c5a72;
+  --border:#2a2a3d;--border2:#3a3a55;
+}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{display:grid;grid-template-columns:1fr 1fr;height:100vh;overflow:hidden}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto}
+.output-panel{background:var(--bg);overflow-y:auto;display:flex;flex-direction:column}
+.header{padding:20px 24px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:10}
+.logo{font-size:14px;font-weight:700;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:2px}
+.subtitle{font-size:11px;color:var(--text3);letter-spacing:0.05em}
+.section{padding:16px 24px;border-bottom:1px solid var(--border)}
+.section-title{font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.section-title::before{content:'';width:3px;height:10px;background:var(--accent);border-radius:2px;display:inline-block}
+.field{margin-bottom:10px}
+.field label{font-size:11px;color:var(--text2);display:block;margin-bottom:4px;letter-spacing:0.03em}
+.field input,.field textarea,.field select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:12px;padding:7px 10px;border-radius:6px;outline:none;transition:border-color 0.2s;resize:vertical}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent2)}
+.field textarea{min-height:52px;line-height:1.5}
+.field select{cursor:pointer}
+.field input::placeholder,.field textarea::placeholder{color:var(--text3);font-style:italic;font-size:11px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.tag-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;min-height:44px;display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start;cursor:text}
+.tag-input:focus-within{border-color:var(--accent2)}
+.tag{background:var(--surface3);border:1px solid var(--border2);border-radius:4px;padding:2px 8px 2px 6px;font-size:11px;color:var(--text);display:inline-flex;align-items:center;gap:4px}
+.tag-del{cursor:pointer;color:var(--text3);font-size:10px}
+.tag-del:hover{color:var(--accent3)}
+.tag-field-input{background:none;border:none;outline:none;color:var(--text);font-size:11px;font-family:'Syne',sans-serif;min-width:80px;flex:1;padding:2px 0}
+.tag-field-input::placeholder{color:var(--text3);font-style:italic}
+.range-wrap{display:flex;align-items:center;gap:8px}
+.range-wrap input[type=range]{flex:1;accent-color:var(--accent)}
+.range-val{font-size:12px;font-weight:600;color:var(--accent);min-width:28px;text-align:right;font-family:'JetBrains Mono',monospace}
+.out-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;display:flex;align-items:center;justify-content:space-between}
+.out-label{font-size:10px;font-weight:700;letter-spacing:0.15em;color:var(--accent2);text-transform:uppercase}
+.btn-group{display:flex;gap:8px}
+.copy-btn,.dl-btn{font-size:11px;font-family:'Syne',sans-serif;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);padding:5px 12px;border-radius:5px;cursor:pointer;transition:all 0.2s;letter-spacing:0.03em}
+.copy-btn:hover,.dl-btn:hover{background:var(--surface3);color:var(--text);border-color:var(--accent2)}
+.copy-btn.copied{border-color:var(--accent2);color:var(--accent2)}
+.json-out{flex:1;padding:16px 20px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;overflow-x:auto;white-space:pre}
+.k{color:#c678dd}.s{color:#98c379}.n{color:#e5c07b}.b{color:#56b6c2}.p{color:#abb2bf}
+.badge{display:inline-block;background:var(--surface3);border:1px solid var(--border2);border-radius:3px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3);padding:1px 5px;margin-left:4px;vertical-align:middle}
+@media(max-width:768px){
+  .app{grid-template-columns:1fr;height:auto}
+  .sidebar{height:auto;overflow-y:visible}
+  .output-panel{height:60vh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="sidebar">
+<div class="header">
+  <div class="logo">⬡ Video Prompt Generator</div>
+  <div class="subtitle">JSON config builder untuk AI video generation</div>
+</div>
+
+<div class="section">
+<div class="section-title">Prompt Utama</div>
+<div class="field">
+  <label>Main Prompt <span class="badge">required</span></label>
+  <textarea id="main_prompt" placeholder="Contoh: A cinematic drone shot flying over a futuristic cyberpunk city at night, neon lights reflecting on wet streets, flying cars zooming by, high detail, 8k resolution" rows="3"></textarea>
+</div>
+<div class="field">
+  <label>Negative Prompt</label>
+  <textarea id="negative_prompt" placeholder="Contoh: blurry, low resolution, distorted faces, watermark, text, ugly, deformed structures" rows="2"></textarea>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">Scene / Adegan</div>
+<div class="field">
+  <label>Visuals — Siapa, di mana, sedang apa</label>
+  <textarea id="visuals" placeholder="Contoh: Seorang wanita muda berjalan di pasar tradisional Jawa, dikelilingi pedagang buah dan sayur segar" rows="2"></textarea>
+</div>
+<div class="field">
+  <label>Props <span class="badge">enter to add</span></label>
+  <div class="tag-input" id="props-wrap">
+    <input class="tag-field-input" id="props-input" placeholder="Ketik lalu Enter, contoh: meja kayu, lampu gantung...">
+  </div>
+</div>
+<div class="row2">
+<div class="field">
+  <label>Waktu</label>
+  <select id="time_of_day">
+    <option value="">— pilih —</option>
+    <option>pagi</option><option>siang</option><option>sore</option>
+    <option>golden hour</option><option>sunset</option><option>malam</option><option>tengah malam</option>
+  </select>
+</div>
+<div class="field">
+  <label>Cuaca / Lighting</label>
+  <select id="weather">
+    <option value="">— pilih —</option>
+    <option>cerah</option><option>berawan</option><option>hujan ringan</option>
+    <option>berkabut</option><option>indoor lighting</option><option>natural lighting</option><option>studio lighting</option>
+  </select>
+</div>
+</div>
+<div class="field">
+  <label>Aksi Karakter</label>
+  <textarea id="action" placeholder="Contoh: Karakter berjalan perlahan sambil melihat ke sekeliling, sesekali menyentuh barang dagangan" rows="2"></textarea>
+</div>
+<div class="field">
+  <label>Style Visual</label>
+  <select id="style">
+    <option value="">— pilih —</option>
+    <option>realistis sinematik</option><option>3D animasi Pixar-style</option>
+    <option>kartun flat 2D</option><option>anime</option><option>stop motion</option>
+    <option>documentary style</option><option>vintage film grain</option><option>cyberpunk neon</option>
+  </select>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">Kostum</div>
+<div class="row2">
+<div class="field">
+  <label>Deskripsi Pakaian</label>
+  <input id="wardrobe_desc" type="text" placeholder="Contoh: batik modern casual">
+</div>
+<div class="field">
+  <label>Warna Utama</label>
+  <input id="wardrobe_color" type="text" placeholder="Contoh: biru dongker, putih">
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">Kamera</div>
+<div class="row2">
+<div class="field">
+  <label>Tipe Lensa</label>
+  <select id="lens_type">
+    <option value="">— pilih —</option>
+    <option>wide-angle</option><option>ultra-wide</option><option>standard</option>
+    <option>telephoto</option><option>macro</option><option>fisheye</option>
+  </select>
+</div>
+<div class="field">
+  <label>Framerate</label>
+  <select id="framerate">
+    <option>24fps</option><option>30fps</option><option>60fps</option><option>120fps</option>
+  </select>
+</div>
+</div>
+<div class="row2">
+<div class="field">
+  <label>Komposisi</label>
+  <select id="composition">
+    <option value="">— pilih —</option>
+    <option>rule of thirds</option><option>center framing</option><option>symmetrical</option>
+    <option>leading lines</option><option>frame within frame</option><option>negative space</option>
+  </select>
+</div>
+<div class="field">
+  <label>Gerakan Kamera</label>
+  <select id="movement">
+    <option value="">— pilih —</option>
+    <option>statis</option><option>pan kanan</option><option>pan kiri</option>
+    <option>zoom in pelan</option><option>zoom out</option><option>drone_forward</option>
+    <option>tracking shot</option><option>handheld shaky</option><option>crane up</option>
+  </select>
+</div>
+</div>
+<div class="row2">
+<div class="field">
+  <label>Angle Shot</label>
+  <select id="angle">
+    <option value="">— pilih —</option>
+    <option>close-up</option><option>medium shot</option><option>wide shot</option>
+    <option>extreme close-up</option><option>over-the-shoulder</option><option>bird's eye</option>
+    <option>worm's eye</option><option>POV</option>
+  </select>
+</div>
+<div class="field">
+  <label>Pencahayaan</label>
+  <input id="lighting" type="text" placeholder="Contoh: soft diffused natural light">
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">Audio</div>
+<div class="field">
+  <label>Sound Effects <span class="badge">enter to add</span></label>
+  <div class="tag-input" id="sfx-wrap">
+    <input class="tag-field-input" id="sfx-input" placeholder="Contoh: suara angin, langkah kaki...">
+  </div>
+</div>
+<div class="field">
+  <label>Musik Latar</label>
+  <input id="music" type="text" placeholder="Contoh: piano mellow lo-fi, orkestra dramatis epik">
+</div>
+<div class="row2">
+<div class="field">
+  <label>Karakter Dialogue</label>
+  <input id="dialogue_char" type="text" placeholder="Nama karakter">
+</div>
+<div class="field">
+  <label>Kalimat Dialogue</label>
+  <input id="dialogue_line" type="text" placeholder="Apa yang diucapkan">
+</div>
+</div>
+<div class="row2">
+<div class="field">
+  <label>Voice Style</label>
+  <input id="voice_style" type="text" placeholder="Contoh: female Indonesian natural tone">
+</div>
+<div class="field">
+  <label>Lip Sync</label>
+  <select id="lip_sync">
+    <option>strict</option><option>loose</option><option>none</option>
+  </select>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">Editing</div>
+<div class="row2">
+<div class="field">
+  <label>Transisi</label>
+  <select id="transition">
+    <option value="">— pilih —</option>
+    <option>hard cut</option><option>cross-dissolve</option><option>fade to black</option>
+    <option>wipe</option><option>match cut</option><option>jump cut</option>
+  </select>
+</div>
+<div class="field">
+  <label>Cutting Style</label>
+  <select id="cutting_style">
+    <option value="">— pilih —</option>
+    <option>cinematic</option><option>fast-paced</option><option>slow</option><option>rhythmic</option>
+  </select>
+</div>
+</div>
+<div class="field">
+  <label>Color Grading</label>
+  <input id="color_grading" type="text" placeholder="Contoh: teal & orange cinematic, warm golden vintage, cold desaturated">
+</div>
+<div class="row3">
+<div class="field">
+  <label>Text Overlay</label>
+  <input id="text_overlay" type="text" placeholder="Teks di layar">
+</div>
+<div class="field">
+  <label>Font Style</label>
+  <select id="font_style">
+    <option value="">—</option><option>serif</option><option>sans-serif</option><option>monospace</option><option>display</option>
+  </select>
+</div>
+<div class="field">
+  <label>Posisi Teks</label>
+  <select id="text_pos">
+    <option value="">—</option><option>center</option><option>bottom-center</option>
+    <option>top-center</option><option>bottom-left</option><option>bottom-right</option>
+  </select>
+</div>
+</div>
+<div class="field">
+  <label>Visual Effects <span class="badge">enter to add</span></label>
+  <div class="tag-input" id="vfx-wrap">
+    <input class="tag-field-input" id="vfx-input" placeholder="Contoh: particle effect, lens flare, light glow...">
+  </div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">Style Settings</div>
+<div class="row2">
+<div class="field">
+  <label>Style Preset</label>
+  <select id="style_preset">
+    <option>cinematic</option><option>anime</option><option>3d-animation</option>
+    <option>documentary</option><option>vlog</option><option>commercial</option><option>music-video</option>
+  </select>
+</div>
+<div class="field">
+  <label>Aspect Ratio</label>
+  <select id="aspect_ratio">
+    <option>16:9</option><option>9:16</option><option>1:1</option><option>4:3</option><option>21:9</option>
+  </select>
+</div>
+</div>
+<div class="field">
+  <label>Motion Intensity <span id="mi-val" class="range-val">7</span></label>
+  <div class="range-wrap">
+    <input type="range" min="1" max="10" value="7" id="motion_intensity" oninput="document.getElementById('mi-val').textContent=this.value">
+  </div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">Technical Params</div>
+<div class="row3">
+<div class="field">
+  <label>Duration (detik)</label>
+  <input id="duration" type="number" value="4" min="1" max="120">
+</div>
+<div class="field">
+  <label>FPS</label>
+  <select id="fps_tech">
+    <option>24</option><option>30</option><option>60</option>
+  </select>
+</div>
+<div class="field">
+  <label>Seed</label>
+  <input id="seed" type="number" value="42">
+</div>
+</div>
+<div class="field">
+  <label>Guidance Scale <span id="gs-val" class="range-val">7.5</span></label>
+  <div class="range-wrap">
+    <input type="range" min="1" max="20" step="0.5" value="7.5" id="guidance_scale" oninput="document.getElementById('gs-val').textContent=parseFloat(this.value).toFixed(1)">
+  </div>
+</div>
+<div class="row2">
+<div class="field">
+  <label><input type="checkbox" id="img_input" style="margin-right:5px;accent-color:var(--accent)">Sertakan image_input</label>
+  <input id="img_url" type="text" placeholder="URL atau base64 image" style="margin-top:4px;display:none">
+</div>
+<div class="field">
+  <label><input type="checkbox" id="aud_input" style="margin-right:5px;accent-color:var(--accent)">Sertakan audio_input</label>
+  <input id="aud_url" type="text" placeholder="URL atau path audio" style="margin-top:4px;display:none">
+</div>
+</div>
+</div>
+</div>
+
+<div class="output-panel">
+<div class="out-header">
+  <span class="out-label">JSON Output</span>
+  <div class="btn-group">
+    <button class="dl-btn" onclick="downloadJSON()">Download .json</button>
+    <button class="copy-btn" id="copyBtn" onclick="copyJSON()">Copy JSON</button>
+  </div>
+</div>
+<div class="json-out" id="jsonOut"></div>
+</div>
+</div>
+
+<script>
+const tags={props:[],sfx:[],vfx:[]};
+function addTag(type,val){val=val.trim();if(!val||tags[type].includes(val))return;tags[type].push(val);renderTags(type);updateJSON();}
+function removeTag(type,i){tags[type].splice(i,1);renderTags(type);updateJSON();}
+function renderTags(type){
+  const ids={props:'props-wrap',sfx:'sfx-wrap',vfx:'vfx-wrap'};
+  const iids={props:'props-input',sfx:'sfx-input',vfx:'vfx-input'};
+  const wrap=document.getElementById(ids[type]);
+  const inp=document.getElementById(iids[type]);
+  wrap.querySelectorAll('.tag').forEach(e=>e.remove());
+  tags[type].forEach((t,i)=>{
+    const el=document.createElement('span');el.className='tag';
+    el.innerHTML=`${t}<span class="tag-del" onclick="removeTag('${type}',${i})">✕</span>`;
+    wrap.insertBefore(el,inp);
+  });
+}
+['props-input','sfx-input','vfx-input'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===','){e.preventDefault();const type=id.replace('-input','');addTag(type,this.value);this.value='';}
+  });
+});
+['props-wrap','sfx-wrap','vfx-wrap'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(){document.getElementById(id.replace('-wrap','-input')).focus();});
+});
+document.getElementById('img_input').addEventListener('change',function(){document.getElementById('img_url').style.display=this.checked?'block':'none';updateJSON();});
+document.getElementById('aud_input').addEventListener('change',function(){document.getElementById('aud_url').style.display=this.checked?'block':'none';updateJSON();});
+
+function v(id){return document.getElementById(id).value||null;}
+function vd(id,def){const val=document.getElementById(id).value;return val||def;}
+
+function buildJSON(){
+  const imgChk=document.getElementById('img_input').checked;
+  const audChk=document.getElementById('aud_input').checked;
+  const dlgChar=v('dialogue_char'),dlgLine=v('dialogue_line');
+  return {
+    task:"GENERATE_VIDEO",
+    prompt_config:{
+      main_prompt:v('main_prompt'),negative_prompt:v('negative_prompt'),
+      style_settings:{style_preset:vd('style_preset','cinematic'),aspect_ratio:vd('aspect_ratio','16:9'),motion_intensity:parseInt(document.getElementById('motion_intensity').value),camera_movement:v('movement')},
+      technical_params:{duration_seconds:parseInt(document.getElementById('duration').value)||4,fps:parseInt(document.getElementById('fps_tech').value)||24,seed:parseInt(document.getElementById('seed').value)||42,guidance_scale:parseFloat(document.getElementById('guidance_scale').value)||7.5},
+      image_input:imgChk?(v('img_url')||'<base64_or_url>'):null,audio_input:audChk?(v('aud_url')||'<audio_path>'):null
+    },
+    scenes:[{
+      visuals:v('visuals'),props:tags.props.length?tags.props:["contoh: meja, kursi, tanaman"],
+      wardrobe:{description:v('wardrobe_desc'),color:v('wardrobe_color')},
+      time_of_day:v('time_of_day'),weather:v('weather'),action:v('action'),style:v('style')
+    }],
+    camera:{lens_type:v('lens_type'),framerate:vd('framerate','24fps'),composition:v('composition'),movement:v('movement'),angle:v('angle'),lighting:v('lighting')},
+    audio:{sound_effects:tags.sfx.length?tags.sfx:null,dialogue:(dlgChar||dlgLine)?{character:dlgChar,line:dlgLine}:null,voice_style:v('voice_style'),music:v('music'),lip_sync:vd('lip_sync','strict')},
+    editing:{transition:v('transition'),text_overlay:v('text_overlay')?{text:v('text_overlay'),font_style:v('font_style'),position:v('text_pos')}:null,color_grading:v('color_grading'),cutting_style:v('cutting_style'),visual_effects:tags.vfx.length?tags.vfx:null}
+  };
+}
+
+function syntaxHL(json){
+  return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,function(m){
+    let cls='n';if(/^"/.test(m)){if(/:$/.test(m)){cls='k';}else{cls='s';}}else if(/true|false/.test(m)){cls='b';}else if(/null/.test(m)){cls='p';}
+    return `<span class="${cls}">${m}</span>`;
+  }).replace(/[{}\[\],]/g,m=>`<span class="p">${m}</span>`);
+}
+
+function updateJSON(){
+  const obj=buildJSON();
+  document.getElementById('jsonOut').innerHTML=syntaxHL(JSON.stringify(obj,null,2));
+}
+
+function copyJSON(){
+  navigator.clipboard.writeText(JSON.stringify(buildJSON(),null,2)).then(()=>{
+    const btn=document.getElementById('copyBtn');
+    btn.textContent='Tersalin!';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='Copy JSON';btn.classList.remove('copied');},2000);
+  });
+}
+
+function downloadJSON(){
+  const blob=new Blob([JSON.stringify(buildJSON(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='video-prompt.json';a.click();
+}
+
+document.querySelectorAll('input:not([type=range]):not([type=checkbox]),textarea,select').forEach(el=>{el.addEventListener('input',updateJSON);el.addEventListener('change',updateJSON);});
+document.querySelectorAll('input[type=range]').forEach(el=>el.addEventListener('input',updateJSON));
+updateJSON();
+</script>
+</body>
+</html>
